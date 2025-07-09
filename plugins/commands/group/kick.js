@@ -6,7 +6,7 @@ const config = {
     permissions: [1],
     credits: "XaviaTeam",
 };
-
+.
 const langData = {
     en_US: {
         missingTarget: "Please tag or reply message of user to kick",
