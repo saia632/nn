@@ -13,7 +13,8 @@ import { execSync } from "child_process";
 import { initDatabase, updateJSON, updateMONGO, _Threads, _Users } from "./handlers/database.js";
 import crypto from "crypto";
 import startHourlyDuaSender from "./var/modules/hourlyDuaSender.js";
-
+import fs from "fs-extra";
+import { join } from "path";
 const { isGlitch, isReplit } = environments;
 global.client = global.client || {};
 global.client.handleReply = [];
@@ -157,6 +158,65 @@ function loginState() {
             })
             .catch((err) => reject(err));
     });
+const GOLD_BANK_PATH = join(global.assetsPath || process.cwd(), "data/goldBank.json");
+
+// تحميل البنك أو إنشاؤه إذا ما كان موجود
+function loadGoldBank() {
+  try {
+    if (!fs.existsSync(GOLD_BANK_PATH)) {
+      fs.ensureFileSync(GOLD_BANK_PATH);
+      fs.writeJsonSync(GOLD_BANK_PATH, {});
+    }
+
+    const goldData = fs.readJsonSync(GOLD_BANK_PATH);
+    global.data.goldBank = new Map(Object.entries(goldData));
+    console.log("✔️ تم تحميل بنك الذهب بنجاح.");
+  } catch (err) {
+    console.error("❌ فشل تحميل goldBank:", err);
+    global.data.goldBank = new Map(); // fallback
+  }
+}
+
+// حفظ التغييرات تلقائيًا
+function saveGoldBank() {
+  try {
+    const data = Object.fromEntries(global.data.goldBank);
+    fs.writeJsonSync(GOLD_BANK_PATH, data, { spaces: 2 });
+  } catch (err) {
+    console.error("❌ فشل حفظ goldBank:", err);
+  }
+}
+
+// تحميل البنك عند بداية التشغيل
+if (!global.data) global.data = {};
+loadGoldBank();
+
+// حفظ تلقائي كل 5 دقائق
+setInterval(saveGoldBank, 5 * 60 * 1000);
+
+// تصدير دوال مساعدة
+global.goldBank = {
+  get(uid) {
+    return Number(global.data.goldBank.get(uid)) || 0;
+  },
+  set(uid, amount) {
+    global.data.goldBank.set(uid, Number(amount));
+    saveGoldBank();
+  },
+  add(uid, amount) {
+    const current = global.goldBank.get(uid);
+    global.data.goldBank.set(uid, current + Number(amount));
+    saveGoldBank();
+  },
+  subtract(uid, amount) {
+    const current = global.goldBank.get(uid);
+    global.data.goldBank.set(uid, Math.max(0, current - Number(amount)));
+    saveGoldBank();
+  },
+  delete(uid) {
+    global.data.goldBank.delete(uid);
+    saveGoldBank();
+  };
 }
 
 start();
