@@ -1,48 +1,36 @@
-const config = {
-  name: "ترحيب",
-  description: "يرحب تلقائيًا بالأعضاء الجدد في المجموعة",
-  eventType: ["event"],
-  credits: "XaviaTeam"
-};
+export default async function ({ event }) {
+  const { api } = global;
+  const { threadID, logMessageData } = event;
+  const { Threads, Users } = global.controllers;
 
-const emojis = ["✨", "🌸", "🪐", "🌟", "💫", "🎉", "👑", "🌈", "🦋"];
+  if (event.logMessageType !== "log:subscribe") return;
 
-function getRandomEmoji() {
-  return emojis[Math.floor(Math.random() * emojis.length)];
-}
+  const threadData = await Threads.get(threadID) || {};
+  const threadInfo = threadData.info || {};
+  const threadSettings = threadData.data || {};
+  const welcomeName = threadSettings?.welcomeName || null;
 
-async function onCall({ event, api, message }) {
-  const { threadID, logMessageType, logMessageData } = event;
+  if (!logMessageData?.addedParticipants || logMessageData.addedParticipants.length === 0) return;
 
-  if (logMessageType !== "log:subscribe") return;
+  const addedUsers = logMessageData.addedParticipants;
+  const totalMembers = threadInfo.members?.length || 0;
 
-  const newMembers = logMessageData.addedParticipants;
-  const threadInfo = await api.getThreadInfo(threadID);
+  for (const user of addedUsers) {
+    const uid = user.userFbId;
+    const name = user.fullName || (await Users.getName(uid)) || "عضو";
 
-  for (const member of newMembers) {
-    const userID = member.userFbId;
-    const userInfo = await api.getUserInfo(userID);
-    const name = userInfo[userID]?.name || "عضو جديد";
-    const genderRaw = userInfo[userID]?.gender || "UNKNOWN";
+    // تغيير الكنية إذا تم تحديدها مسبقًا
+    if (welcomeName) {
+      try {
+        await api.changeNickname(welcomeName.replace("{name}", name), threadID, uid);
+      } catch (e) {
+        console.error(`[ترحيب] فشل في تغيير الكنية:`, e);
+      }
+    }
 
-    const gender =
-      genderRaw === "male"
-        ? "ذكر ♂️"
-        : genderRaw === "female"
-        ? "أنثى ♀️"
-        : "غير محدد ⚪";
-
-    const memberCount = threadInfo.participantIDs.length;
-
-    const emoji = getRandomEmoji();
-
-    const welcomeMessage = `${emoji} أهلاً وسهلاً بك يا ${name} ${emoji}\n\n👤 النوع: ${gender}\n📊 أنت العضو رقم: ${memberCount}\n\n🌸✨ نتمنى لك وقتًا ممتعًا معنا! ✨🌸`;
-
-    message.reply(welcomeMessage);
+    // إرسال رسالة ترحيب
+    const welcomeMessage = `👋 أهلاً بك ${name} في المجموعة!\n🆔 أنت العضو رقم ${totalMembers + 1} 🎉`;
+    api.sendMessage(welcomeMessage, threadID);
+    global.sleep(300);
   }
 }
-
-export default {
-  config,
-  onCall
-};
