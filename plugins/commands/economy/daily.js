@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const config = {
   name: "يومية",
-  aliases: ["claim"],
+  aliases: ["يومية"],
   description: "استلم مكافأتك اليومية 🎁",
   credits: "XaviaTeam",
   extra: {
