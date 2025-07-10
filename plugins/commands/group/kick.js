@@ -32,13 +32,13 @@ const langData = {
         error: "Đã có lỗi xảy ra, vui lòng thử lại sau",
     },
     ar_SY: {
-        missingTarget: "يرجى وضع علامة أو الرد على رسالة المستخدم للركلة",
-        botNotAdmin: "يجب أن يكون البوت مسؤولا لطرد المستخدم",
-        botTarget: "لماذا تريد طرد البوت من المجموعة :<?",
-        senderTarget: "لماذا تريد طرد نفسك من المجموعة :v?",
+        missingTarget: "اعمل لي العب تاق ولا رد على رسالتو اشان اطردو 🐢",
+        botNotAdmin: "ارفع ادمن اشان اقدر ابلعو بانكاي 🐢🔥",
+        botTarget: "وزع ما بتقدر تخليني اطرد نفسي من هنا 🐸 :<?",
+        senderTarget: "لو داير تطرد نفسك كلم الادمن 🐸🤝:v?",
         botAndSenderTarget: "لماذا تريد طرد البوت ونفسك من المجموعة :v?",
-        kickResult: "𝘽𝙖𝙣𝙠𝙖𝙞 𝙆𝙖𝙩𝙚𝙣 𝙆𝙮ō𝙠𝙤𝙩𝙨𝙪 𝙆𝙖𝙧𝙖𝙢𝙖𝙩𝙨𝙪 𝙎𝙝𝙞𝙣𝙟ū {success} مستخدم",
-        kickFail: "فشل ركل {fail} مستخدم",
+        kickResult: "𝘽𝙖𝙣𝙠𝙖𝙞 𝙆𝙖𝙩𝙚𝙣 𝙆𝙮ō𝙠𝙤𝙩𝙨𝙪 𝙆𝙖𝙧𝙖𝙢𝙖𝙩𝙨𝙪 𝙎𝙝𝙞𝙣𝙟ū {success} ",
+        kickFail: "فشل ال بانكاي {fail} مستخدم",
         error: "لقد حدث خطأ، رجاء أعد المحاولة لاحقا",
     },
 };
@@ -93,8 +93,13 @@ async function onCall({ message, getLang, data }) {
             }
         }
 
-        await reply(getLang("kickResult", { success }));
-        if (fail > 0) await reply(getLang("kickFail", { fail }));
+        await message.send({
+            body: getLang("kickResult", { success }),
+            attachment: await global.getStreamFromURL("https://i.postimg.cc/Z5m0bk6b/652591f629c1825f29dc266d9a23cfd5.jpg")
+        });
+
+        if (fail > 0)
+            await reply(getLang("kickFail", { fail }));
     } catch (e) {
         console.error(e);
         reply(getLang("error"));
