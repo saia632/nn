@@ -8,17 +8,16 @@ const langData = {
         limit: "Bạn đã bị kick khỏi nhóm vì spam!",
     },
     ar_SY: {
-        warn: "[ انـذار] من فضلك توقف عن الازعاج والرسائل الطويلة!",
-        limit: "سيتم طردك من المجموعة لارسال رسائل مزعجة وتخطيك الحدود!",
+        warn: "[ انـذار ] من فضلك توقف عن الازعاج والرسائل الطويلة!",
+        limit: "❌ تم طردك من المجموعة بسبب الإزعاج المتكرر!",
     },
 };
 
 const _1Sec = 1000;
 const _10Sec = _1Sec * 10;
-const _1Day = _1Sec * 60 * 60 * 24;
-const _1Week = _1Day * 7;
+const _1Week = _1Sec * 60 * 60 * 24 * 7;
 const _FAST_REDUCE_INTERVAL = _10Sec;
-const _MIN_TIME_BETWEEN = _1Sec * 2;
+const _MIN_TIME_BETWEEN = _10Sec;
 
 const onLoad = () => {
     if (!global.hasOwnProperty("messageCount")) global.messageCount = [];
@@ -33,41 +32,31 @@ const onLoad = () => {
     }, _FAST_REDUCE_INTERVAL);
 };
 
-// @TODO
-// - Better spam detection
 const isSpam = (memberData, preTime, argsLength, msg, atmLength) => {
     let msgLength = msg.length;
-
     let timeBetween = Date.now() - preTime;
     if (timeBetween > _MIN_TIME_BETWEEN) return 0;
 
     if (memberData.countA.length >= 2) {
-        if (atmLength > 6 && atmLength <= 12) {
-            return 2;
-        } else if (atmLength > 12) {
-            return 4;
-        } else return 1;
+        if (atmLength > 6 && atmLength <= 12) return 2;
+        else if (atmLength > 12) return 4;
+        else return 1;
     }
 
     if (memberData.count >= 2) {
-        if (argsLength <= 20 || msgLength <= 100) {
-            return 1;
-        } else if (
+        if (argsLength <= 20 || msgLength <= 100) return 1;
+        else if (
             (argsLength > 20 && argsLength <= 40) ||
             (msgLength > 100 && msgLength <= 200)
-        ) {
-            return 2;
-        } else if (
+        ) return 2;
+        else if (
             (((argsLength > 20 && argsLength <= 40) ||
                 (msgLength > 100 && msgLength <= 200)) &&
                 timeBetween <= _1Sec / 2) ||
             (argsLength > 40 && argsLength <= 60) ||
             (msgLength > 200 && msgLength <= 300)
-        ) {
-            return 3;
-        } else {
-            return 4;
-        }
+        ) return 3;
+        else return 4;
     }
 };
 
@@ -77,9 +66,16 @@ const onCall = ({ message, getLang, data }) => {
     if (!data?.thread?.info?.adminIDs?.some((e) => e == global.botID)) return;
 
     const { senderID, threadID } = message;
+
+    // ✅ تجاهل المطورين والأدمن
+    const adminIDs = data?.thread?.info?.adminIDs?.map(e => e.id) || [];
+    const isThreadAdmin = adminIDs.includes(senderID);
+    const isBotAdmin = global.config?.ADMINBOT?.includes(senderID);
+    if (isThreadAdmin || isBotAdmin) return;
+
     if (!data.thread.data.hasOwnProperty("spamWarn"))
         data.thread.data.spamWarn = [];
-    if (!data.thread.data.spamWarn.some((e) => e.id == message.senderID))
+    if (!data.thread.data.spamWarn.some((e) => e.id == senderID))
         data.thread.data.spamWarn.push({ id: senderID, count: [] });
 
     const spamWarnIndex = data.thread.data.spamWarn.findIndex(
@@ -90,27 +86,20 @@ const onCall = ({ message, getLang, data }) => {
 
     spamWarn.count = spamWarn.count.filter((e) => e >= Date.now() - _1Week);
 
-    if (senderID == global.botID) return;
     if (!global.messageCount.some((e) => e.threadID == threadID))
         global.messageCount.push({ threadID, members: [] });
-    if (
-        !global.messageCount
-            .find((e) => e.threadID == threadID)
-            .members.some((e) => e.id == senderID)
-    )
-        global.messageCount
-            .find((e) => e.threadID == threadID)
-            .members.push({
-                id: senderID,
-                count: 0,
-                countA: [],
-                lastTime: 0,
-                fast: 0,
-            });
 
     const threadData = global.messageCount.find((e) => e.threadID == threadID);
-    const memberData = threadData.members.find((e) => e.id == senderID);
+    if (!threadData.members.some((e) => e.id == senderID))
+        threadData.members.push({
+            id: senderID,
+            count: 0,
+            countA: [],
+            lastTime: 0,
+            fast: 0,
+        });
 
+    const memberData = threadData.members.find((e) => e.id == senderID);
     let preTime = memberData.lastTime;
 
     if (message.attachments.length > 0)
@@ -120,14 +109,16 @@ const onCall = ({ message, getLang, data }) => {
     memberData.lastTime = Date.now();
 
     let msgNewLine = (message.body.match(/\n/g) || []).length;
-    let avgLineLength = message.body.length / msgNewLine;
+    let avgLineLength = message.body.length / (msgNewLine || 1);
 
-    if (memberData >= 60 || (msgNewLine >= 40 && avgLineLength <= 3))
+    if (msgNewLine >= 35 && avgLineLength <= 3)
         memberData.fast += 12;
-    else if (msgNewLine >= 40 || (msgNewLine >= 20 && avgLineLength <= 3))
+    else if (msgNewLine >= 30 || (msgNewLine >= 20 && avgLineLength <= 3))
         memberData.fast += 5;
-    else if (msgNewLine >= 20) memberData.fast += 3;
-    else if (msgNewLine >= 10 && avgLineLength <= 3) memberData.fast += 2;
+    else if (msgNewLine >= 20)
+        memberData.fast += 3;
+    else if (msgNewLine >= 10 && avgLineLength <= 3)
+        memberData.fast += 2;
 
     if (memberData.count < 2 && memberData.countA.length < 2) return;
     let isMemberSpam = isSpam(
@@ -146,19 +137,15 @@ const onCall = ({ message, getLang, data }) => {
     memberData.fast += isMemberSpam;
 
     if (memberData.fast >= 12) {
-        global.messageCount.find((e) => e.threadID == threadID).members =
-            global.messageCount
-                .find((e) => e.threadID == threadID)
-                .members.filter((e) => e.id != senderID);
-
+        threadData.members = threadData.members.filter((e) => e.id != senderID);
         spamWarn.count.push(Date.now());
         message.reply(getLang("warn"));
 
-        if (spamWarn.count.length >= 3) {
+        if (spamWarn.count.length >= 2) {
             message.reply(getLang("limit"));
-            global.api.removeUserFromGroup(senderID, threadID, (err) =>
-                console.error(err)
-            );
+            global.api.removeUserFromGroup(senderID, threadID, (err) => {
+                if (err) console.error(err);
+            });
         }
     }
 };
