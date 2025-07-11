@@ -1,36 +1,28 @@
-export default async function ({ event }) {
-  const { api } = global;
-  const { threadID, logMessageData } = event;
-  const { Threads, Users } = global.controllers;
-
+export default async function ({ event, message, threads, users }) {
   if (event.logMessageType !== "log:subscribe") return;
 
-  const threadData = await Threads.get(threadID) || {};
-  const threadInfo = threadData.info || {};
-  const threadSettings = threadData.data || {};
-  const welcomeName = threadSettings?.welcomeName || null;
+  const { threadID, logMessageData } = event;
+  const { addedParticipants } = logMessageData;
 
-  if (!logMessageData?.addedParticipants || logMessageData.addedParticipants.length === 0) return;
+  const threadInfo = await threads.get(threadID);
+  if (!threadInfo || !addedParticipants || addedParticipants.length === 0) return;
 
-  const addedUsers = logMessageData.addedParticipants;
-  const totalMembers = threadInfo.members?.length || 0;
+  const memberCount = threadInfo.members.length;
 
-  for (const user of addedUsers) {
-    const uid = user.userFbId;
-    const name = user.fullName || (await Users.getName(uid)) || "عضو";
+  for (const participant of addedParticipants) {
+    const userID = participant.userFbId;
+    const userInfo = await users.getInfo(userID);
+    const name = userInfo?.name || "عضو جديد";
 
-    // تغيير الكنية إذا تم تحديدها مسبقًا
-    if (welcomeName) {
-      try {
-        await api.changeNickname(welcomeName.replace("{name}", name), threadID, uid);
-      } catch (e) {
-        console.error(`[ترحيب] فشل في تغيير الكنية:`, e);
-      }
-    }
+    const welcomeMsg = `
+✧･ﾟ: *✧･ﾟ:* 𝑾𝒆𝒍𝒄𝒐𝒎𝒆 *:･ﾟ✧*:･ﾟ✧
 
-    // إرسال رسالة ترحيب
-    const welcomeMessage = `👋 أهلاً بك ${name} في المجموعة!\n🆔 أنت العضو رقم ${totalMembers + 1} 🎉`;
-    api.sendMessage(welcomeMessage, threadID);
-    global.sleep(300);
+👋 أهلاً وسهلاً بك يا ${name}
+✨ لقد أصبحت العضو رقم ${memberCount} في مجموعتنا!
+
+🪐 نتمنى لك وقتًا ممتعًا ومليئًا بالطاقة!
+    `.trim();
+
+    await message.send(welcomeMsg, threadID);
   }
 }
