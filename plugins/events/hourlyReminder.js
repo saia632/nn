@@ -1,5 +1,6 @@
 // 📁 Plugins/events/hourlyReminder.js
-const moment = require("moment-timezone");
+
+import moment from "moment-timezone";
 
 const schedule = {
   0: "🌙 {الساعة 12 صباحًا} استغفر ربك قبل النوم وقل: اللهم اجعل لي من أمري فرجًا.",
@@ -30,19 +31,34 @@ const schedule = {
 
 let sentHour = null;
 
-module.exports = async ({ api }) => {
-  setInterval(async () => {
-    const hour = moment().tz("Africa/Khartoum").hour();
-    if (hour === sentHour) return;
+function onStart({ api }) {
+  // ✅ رسالة تأكيد عند تشغيل البوت
+  console.log("✅ نظام التذكير بالساعات تم تفعيله وسيعمل حسب توقيت السودان.");
 
+  // إرسال رسالة إلى المطور (اختياري)
+  const adminID = "61562119538523"; // عدل إذا كان لديك آيدي مختلف
+  api.sendMessage(
+    "✅ تم تفعيل نظام التذكير التلقائي لجميع ساعات اليوم حسب توقيت السودان.\n💡 للتعطيل في مجموعة معينة استخدم: 'التذكير إيقاف'",
+    adminID
+  );
+
+  setInterval(() => {
+    const hour = moment().tz("Africa/Khartoum").hour();
+
+    if (hour === sentHour) return;
     sentHour = hour;
-    const message = schedule[hour];
-    if (!message) return;
+
+    const msg = schedule[hour];
+    if (!msg) return;
 
     const threads = global.data.threads || new Map();
     for (const [threadID, thread] of threads) {
       if (thread?.data?.dailyNoti === false) continue;
-      api.sendMessage(message, threadID);
+      api.sendMessage(msg, threadID);
     }
   }, 1000 * 60 * 3); // فحص كل 3 دقائق
+}
+
+export default {
+  onStart
 };
